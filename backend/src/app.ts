@@ -14,13 +14,27 @@ const repositoryPath =
   (process.env.NODE_ENV === 'test'
     ? resolve('/tmp/scamshield-tests/analyses.dev.json')
     : resolve(process.cwd(), '../database/analyses.dev.json'))
+const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 
 const repository = new FileAnalysisRepository(repositoryPath)
 
 export const app = express()
 
 app.use(helmet())
-app.use(cors({ origin: process.env.CORS_ORIGIN ?? '*' }))
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(new Error('Origin not allowed by CORS policy'))
+    }
+  })
+)
 app.use(express.json({ limit: '50kb' }))
 app.use(
   rateLimit({
